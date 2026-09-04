@@ -2,12 +2,22 @@ import logging
 from datetime import datetime, timezone
 import os
 import sys
+from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import execute_values
 import requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+load_dotenv()
+
+# --- DATABASE CONFIGURATION ---
+PG_HOST = os.getenv("PG_HOST", "localhost")
+PG_PORT = os.getenv("PG_PORT", "5432")
+PG_DB = os.getenv("PG_DB", "postgres")
+PG_USER = os.getenv("PG_USER", "postgres")
+PG_PASSWORD = os.getenv("PG_PASSWORD", "")
 
 # Meteo API Documentation: https://open-meteo.com/en/docs
 
