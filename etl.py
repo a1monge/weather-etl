@@ -89,3 +89,23 @@ def transform(raw_payloads: list[dict]) -> list[tuple]:
         if temp_c is None or not observed_at_str:
             logger.warning(f"Skipping {city}: Missing required fields.")
             continue
+        
+        try:
+            # Business Logic 1: Unit Conversion (Celsius to Fahrenheit)
+            temp_f = round((temp_c * 9 / 5) + 32, 2)
+
+            # Business Logic 2: Standardize timestamp to UTC datetime object
+            observed_at = datetime.fromisoformat(observed_at_str).replace(tzinfo=timezone.utc)
+
+            humidity = current.get("relative_humidity_2m")
+            wind_speed = current.get("wind_speed_10m")
+            weather_code = current.get("weather_code")
+
+            record = (city, observed_at, temp_f, humidity, wind_speed, weather_code, fetched_at)
+            transformed_records.append(record)
+
+        except Exception as e:
+            logger.warning(f"Error parsing record for {city}: {e}")
+            continue
+
+    return transformed_records
