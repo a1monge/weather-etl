@@ -1,5 +1,7 @@
 import logging
 from datetime import datetime, timezone
+import os
+import psycopg2
 from psycopg2.extras import execute_values
 import requests
 
@@ -109,3 +111,63 @@ def transform(raw_payloads: list[dict]) -> list[tuple]:
             continue
 
     return transformed_records
+
+# ==========================================
+# 3. LOAD STAGE
+# ==========================================
+def get_db_connection():
+    """Establish and return a database connection with SSL enabled for Supabase."""
+    return psycopg2.connect(
+        host=os.getenv("PG_HOST", "localhost"),
+        port=os.getenv("PG_PORT", "5432"),
+        dbname=os.getenv("PG_DB", "postgres"),
+        user=os.getenv("PG_USER", "postgres"),
+        password=os.getenv("PG_PASSWORD", ""),
+        sslmode="require",
+    )
+
+
+def init_db():
+    """Ensure the target database table and composite primary key exist."""
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS weather_readings (
+        city VARCHAR(50) NOT NULL,
+        observed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        temp_f NUMERIC(5, 2) NOT NULL,
+        humidity INT,
+        wind_speed_mph NUMERIC(5, 2),
+        weather_code INT,
+        fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (city, observed_at)
+    );
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(create_table_query)
+        conn.commit()
+
+
+def load(records: list[tuple]) -> int:
+    if not records:
+        logger.info("No records to load.")
+        return 0
+
+    upsert_query = """
+    INSERT INTO weather_readings (
+        city, observed_at, temp_f, humidity, wind_speed_mph, weather_code, fetched_at
+    )
+    VALUES %s
+    ON CONFLICT (city, observed_at) DO UPDATE SET
+        temp_f = EXCLUDED.temp_f,
+        humidity = EXCLUDED.humidity,
+        wind_speed_mph = EXCLUDED.wind_speed_mph,
+        weather_code = EXCLUDED.weather_code,
+        fetched_at = EXCLUDED.fetched_at;
+    """
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            execute_values(cur, upsert_query, records)
+        conn.commit()
+
+    return len(records)
