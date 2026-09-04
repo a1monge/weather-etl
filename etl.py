@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone
 import os
+import sys
 import psycopg2
 from psycopg2.extras import execute_values
 import requests
@@ -38,7 +39,7 @@ def get_coordinates(city_name: str) -> tuple[float, float] | None:
         logger.warning(f"Geocoding API error for '{city_name}': {e}")
         return None
 
-
+# 1. EXTRACT STAGE
 def extract(city_names: list[str]) -> list[dict]:
     # Extracts weather data for a list of city strings.
     extracted_data = []
@@ -73,6 +74,7 @@ def extract(city_names: list[str]) -> list[dict]:
 
     return extracted_data
 
+# 2. TRANSFORM STAGE
 def transform(raw_payloads: list[dict]) -> list[tuple]:
     transformed_records = []
     fetched_at = datetime.now(timezone.utc)
@@ -112,9 +114,8 @@ def transform(raw_payloads: list[dict]) -> list[tuple]:
 
     return transformed_records
 
-# ==========================================
+
 # 3. LOAD STAGE
-# ==========================================
 def get_db_connection():
     """Establish and return a database connection with SSL enabled for Supabase."""
     return psycopg2.connect(
@@ -171,3 +172,27 @@ def load(records: list[tuple]) -> int:
         conn.commit()
 
     return len(records)
+
+def run_pipeline():
+    # Capture any cities passed via terminal, or use defaults
+    terminal_args = sys.argv[1:]
+    cities_to_fetch = terminal_args if terminal_args else CITIES_TO_FETCH
+
+    logger.info(f"Starting weather ETL run for cities: {cities_to_fetch}")
+
+    # 1. Ensure table schema exists in PostgreSQL
+    init_db()
+
+    # 2. Execute Extract, Transform, Load
+    raw_data = extract(cities_to_fetch)
+    transformed_records = transform(raw_data)
+    loaded_count = load(transformed_records)
+
+    logger.info(
+        f"ETL run complete: extracted={len(raw_data)} "
+        f"transformed={len(transformed_records)} loaded={loaded_count}"
+    )
+
+
+if __name__ == "__main__":
+    run_pipeline()
