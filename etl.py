@@ -139,7 +139,6 @@ def get_db_connection():
 
 
 def init_db():
-    """Ensure the target database table and composite primary key exist."""
     create_table_query = """
     CREATE TABLE IF NOT EXISTS weather_readings (
         city VARCHAR(50) NOT NULL,
@@ -151,6 +150,9 @@ def init_db():
         fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (city, observed_at)
     );
+
+    CREATE INDEX IF NOT EXISTS idx_weather_city_observed 
+    ON weather_readings (city, observed_at DESC);
     """
     with get_db_connection() as conn:
         with conn.cursor() as cur:
