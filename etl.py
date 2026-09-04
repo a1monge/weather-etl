@@ -70,3 +70,22 @@ def extract(city_names: list[str]) -> list[dict]:
             continue
 
     return extracted_data
+
+def transform(raw_payloads: list[dict]) -> list[tuple]:
+    transformed_records = []
+    fetched_at = datetime.now(timezone.utc)
+    
+    for payload in raw_payloads:
+        city = payload.get("_city_name", "Unknown")
+        current = payload.get("current")
+
+        if not current:
+            logger.warning(f"Skipping {city}: Missing 'current' data block.")
+            continue
+        
+        temp_c = current.get("temperature_2m")
+        observed_at_str = current.get("time")
+
+        if temp_c is None or not observed_at_str:
+            logger.warning(f"Skipping {city}: Missing required fields.")
+            continue
