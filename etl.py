@@ -25,7 +25,7 @@ PG_PASSWORD = os.getenv("PG_PASSWORD", "")
 GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
 WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
 
-# Dynamic input list
+# Default seed list
 CITIES_TO_FETCH = ["Dallas", "Austin", "Houston", "San Antonio", "Lubbock"]
 
 
@@ -48,6 +48,7 @@ def get_coordinates(city_name: str) -> tuple[float, float] | None:
     except requests.RequestException as e:
         logger.warning(f"Geocoding API error for '{city_name}': {e}")
         return None
+
 
 # 1. EXTRACT STAGE
 def extract(city_names: list[str]) -> list[dict]:
@@ -83,6 +84,7 @@ def extract(city_names: list[str]) -> list[dict]:
             continue
 
     return extracted_data
+
 
 # 2. TRANSFORM STAGE
 def transform(raw_payloads: list[dict]) -> list[tuple]:
@@ -160,6 +162,32 @@ def init_db():
         conn.commit()
 
 
+def get_target_cities(cli_args: list[str]) -> list[str]:
+    """
+    Combines default seed cities, new command-line inputs, and existing DB records 
+    so any new city queried once is automatically fetched forever after.
+    """
+    cities = {city.title() for city in CITIES_TO_FETCH}
+
+    # Add any city passed via command line (e.g., python etl.py "Chicago")
+    if cli_args:
+        for city in cli_args:
+            cities.add(city.strip().title())
+
+    # Fetch all cities previously loaded into the database
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT DISTINCT city FROM weather_readings;")
+                db_cities = cur.fetchall()
+                for row in db_cities:
+                    cities.add(row[0].title())
+    except Exception as e:
+        logger.warning(f"Could not fetch existing cities from DB (it may be empty/new): {e}")
+
+    return list(cities)
+
+
 def load(records: list[tuple]) -> int:
     if not records:
         logger.info("No records to load.")
@@ -185,17 +213,18 @@ def load(records: list[tuple]) -> int:
 
     return len(records)
 
+
 def run_pipeline():
-    # Capture any cities passed via terminal, or use defaults
-    terminal_args = sys.argv[1:]
-    cities_to_fetch = terminal_args if terminal_args else CITIES_TO_FETCH
-
-    logger.info(f"Starting weather ETL run for cities: {cities_to_fetch}")
-
     # 1. Ensure table schema exists in PostgreSQL
     init_db()
 
-    # 2. Execute Extract, Transform, Load
+    # 2. Dynamically resolve city list from CLI + DB + defaults
+    terminal_args = sys.argv[1:]
+    cities_to_fetch = get_target_cities(terminal_args)
+
+    logger.info(f"Starting weather ETL run for cities: {cities_to_fetch}")
+
+    # 3. Execute Extract, Transform, Load
     raw_data = extract(cities_to_fetch)
     transformed_records = transform(raw_data)
     loaded_count = load(transformed_records)

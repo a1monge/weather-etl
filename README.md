@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS weather_readings (
     PRIMARY KEY (city, observed_at)
 );
 
-CREATE INDEX IF NOT EXISTS idx_weather_city_observed 
+CREATE INDEX IF NOT EXISTS idx_weather_city_observed
 ON weather_readings (city, observed_at DESC);
 ```
 
@@ -52,9 +52,9 @@ Because weather observation timestamps change hourly, re-running the pipeline wi
 To verify idempotency across automated GitHub Action runs, the duplicate check query below confirms zero duplicate records exist:
 
 ```sql
-SELECT 
-    city, 
-    observed_at, 
+SELECT
+    city,
+    observed_at,
     COUNT(*) AS record_count
 FROM weather_readings
 GROUP BY city, observed_at
@@ -68,11 +68,11 @@ HAVING COUNT(*) > 1;
 ### Current Weather Snapshot Across All Cities
 
 ```sql
-SELECT DISTINCT ON (city) 
-    city, 
-    temp_f, 
-    humidity, 
-    wind_speed_mph, 
+SELECT DISTINCT ON (city)
+    city,
+    temp_f,
+    humidity,
+    wind_speed_mph,
     observed_at,
     fetched_at
 FROM weather_readings
@@ -84,7 +84,7 @@ ORDER BY city, observed_at DESC;
 ### Historical Weather Trend for a City (e.g., Dallas)
 
 ```sql
-SELECT 
+SELECT
     city,
     observed_at,
     temp_f,
@@ -101,12 +101,14 @@ LIMIT 24;
 ## Local Setup & Execution
 
 1. **Clone repository**:
+
    ```bash
    git clone [https://github.com/YOUR_GITHUB_USERNAME/weather-etl.git](https://github.com/YOUR_GITHUB_USERNAME/weather-etl.git)
    cd weather-etl
    ```
 
 2. **Set up virtual environment & install dependencies**:
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -115,6 +117,7 @@ LIMIT 24;
 
 3. **Configure Environment Variables**:
    Create a `.env` file in the root directory:
+
    ```env
    PG_HOST=aws-0-us-east-1.pooler.supabase.com
    PG_PORT=6543
