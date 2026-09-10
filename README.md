@@ -17,8 +17,9 @@ weather-etl/
 │   └── workflows/
 │       └── etl.yml                   # GitHub Actions CI/CD pipeline schedule
 ├── assets/
-│   └── sql_idempotency_proof.png      # Database execution & query snapshot
+│   └── sql_idempotency_proof.png     # Database execution & query snapshot
 ├── etl.py                            # Main ETL pipeline execution script
+├── test_etl.py                       # Unit tests for etl.transform()
 ├── requirements.txt                  # Dependency declarations
 ├── .env                              # Local environment variables (git-ignored)
 ├── .gitignore                        # Git exclusion rules
