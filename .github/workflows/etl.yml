@@ -1,7 +1,7 @@
 name: Automated Weather ETL Pipeline
 
 on:
-  # Run automatically every day at 12:00 AM UTC
+  # Run automatically every hour
   schedule:
     - cron: "0 * * * *"
 
